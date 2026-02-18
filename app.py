@@ -104,13 +104,18 @@ if menu == "Registrar gasto":
 
     importe = st.number_input("Importe (€)", min_value=0.0, step=0.01)
     tipo = st.selectbox("Tipo gasto", ["Compartido", "Personal"])
+    persona = ""
+    if tipo == "Personal":
+            persona = st.selectbox("Persona", ["María", "Fernando"])
+
     nota = st.text_input("Nota")
 
     if st.button("Guardar gasto"):
         c.execute("""
-        INSERT INTO gastos (fecha, categoria, subcategoria, importe, tipo, nota)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, (str(fecha), categoria, subcategoria, importe, tipo, nota))
+        INSERT INTO gastos (fecha, categoria, subcategoria, importe, tipo, nota, persona)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (str(fecha), categoria, subcategoria, importe, tipo, nota, persona))
+
 
         conn.commit()
         st.success("Gasto guardado 💾")
@@ -218,6 +223,13 @@ if menu == "Dashboard Mensual":
         key="mes_dashboard"
     )
 
+    # ---------------- VISTA
+    vista = st.radio(
+        "Vista",
+        ["Pareja", "María", "Fernando"],
+        horizontal=True
+    )
+
     # ---------------- GASTOS
     df_gastos = pd.read_sql_query(
         f"""
@@ -226,6 +238,25 @@ if menu == "Dashboard Mensual":
         """,
         conn
     )
+
+    # FILTRO PERSONA
+    if vista == "Pareja":
+        # SOLO compartidos
+         df_gastos = df_gastos[df_gastos["tipo"] == "Compartido"]
+
+    elif vista == "María":
+        # compartidos + María
+        df_gastos = df_gastos[
+            (df_gastos["tipo"] == "Compartido") |
+            (df_gastos["persona"] == "María")
+        ]
+
+    elif vista == "Fernando":
+        # compartidos + Fernando
+        df_gastos = df_gastos[
+            (df_gastos["tipo"] == "Compartido") |
+            (df_gastos["persona"] == "Fernando")
+        ]
 
     # ---------------- PRESUPUESTO
     df_pres = pd.read_sql_query(
