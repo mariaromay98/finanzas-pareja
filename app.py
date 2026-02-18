@@ -781,3 +781,86 @@ if menu == "Ver gastos":
                 )
                 conn.commit()
                 st.rerun()
+
+    # =====================================================
+    # EXPORTAR EXCEL PRO
+    # =====================================================
+    import io
+
+    st.divider()
+    st.subheader("📥 Descargar informe en Excel")
+
+    col1, col2 = st.columns(2)
+
+    fecha_inicio = col1.date_input("Desde")
+    fecha_fin = col2.date_input("Hasta")
+
+    df_export = df.copy()
+
+    # ---------- FILTRO FECHAS
+    if fecha_inicio:
+        df_export = df_export[df_export["fecha"] >= str(fecha_inicio)]
+
+    if fecha_fin:
+        df_export = df_export[df_export["fecha"] <= str(fecha_fin)]
+
+    if not df_export.empty:
+
+        # =========================
+        # RESUMEN MENSUAL
+        # =========================
+        df_export["mes"] = df_export["fecha"].str[:7]
+
+        resumen_mes = (
+            df_export.groupby("mes")["importe"]
+            .sum()
+            .reset_index()
+            .sort_values("mes")
+        )
+
+        # =========================
+        # RESUMEN CATEGORÍA
+        # =========================
+        resumen_cat = (
+            df_export.groupby(["categoria","subcategoria"])["importe"]
+            .sum()
+            .reset_index()
+            .sort_values("importe", ascending=False)
+        )
+
+        # =========================
+        # PRESUPUESTOS RELACIONADOS
+        # =========================
+        meses = df_export["mes"].unique()
+
+        df_pres_export = pd.read_sql_query(
+            f"""
+            SELECT * FROM presupuestos
+            WHERE mes IN ({",".join([f"'{m}'" for m in meses])})
+            """,
+            conn
+        )
+
+        # =========================
+        # CREAR EXCEL
+        # =========================
+        buffer = io.BytesIO()
+
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+
+            df_export.to_excel(writer, sheet_name="Gastos", index=False)
+            df_pres_export.to_excel(writer, sheet_name="Presupuestos", index=False)
+            resumen_mes.to_excel(writer, sheet_name="Resumen mensual", index=False)
+            resumen_cat.to_excel(writer, sheet_name="Resumen categorías", index=False)
+
+        buffer.seek(0)
+
+        st.download_button(
+            label="📊 Descargar informe completo",
+            data=buffer,
+            file_name="informe_finanzas.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    else:
+        st.info("No hay datos en ese rango")
