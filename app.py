@@ -49,6 +49,12 @@ CREATE TABLE IF NOT EXISTS gastos (
 )
 """)
 
+# Añadir columna persona si la DB es antigua
+try:
+    c.execute("ALTER TABLE gastos ADD COLUMN persona TEXT")
+except:
+    pass
+
 # ------------------------
 # TABLA PRESUPUESTOS
 # ------------------------
@@ -860,6 +866,16 @@ if menu == "Ver gastos":
         )
 
         # =========================
+        # RESUMEN POR PERSONA
+        # =========================
+        resumen_persona = (
+            df_export.groupby(["tipo","persona"])["importe"]
+            .sum()
+            .reset_index()
+            .sort_values("importe", ascending=False)
+        )
+
+        # =========================
         # PRESUPUESTOS RELACIONADOS
         # =========================
         meses = df_export["mes"].unique()
@@ -883,6 +899,7 @@ if menu == "Ver gastos":
             df_pres_export.to_excel(writer, sheet_name="Presupuestos", index=False)
             resumen_mes.to_excel(writer, sheet_name="Resumen mensual", index=False)
             resumen_cat.to_excel(writer, sheet_name="Resumen categorías", index=False)
+            resumen_persona.to_excel(writer, sheet_name="Resumen por persona", index=False)
 
         buffer.seek(0)
 
